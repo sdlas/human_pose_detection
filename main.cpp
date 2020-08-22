@@ -39,8 +39,7 @@ void movetest(){
 
 void falltest(){
     if(totalarr[(arrlength+9)%10][3]&&totalarr[(arrlength+8)%10][3]){
-        std::cout<<"估计距离为"<<totalarr[(arrlength+9)%10][0]-totalarr[(arrlength+8)%10][0]<<std::endl;
-        if(totalarr[(arrlength+9)%10][3]-totalarr[(arrlength+8)%10][3]>20){
+        if(totalarr[(arrlength+9)%10][3]-totalarr[(arrlength+8)%10][3]>30){
             std::cout<<"跌倒了!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"<<std::endl;
         }
     }
@@ -251,7 +250,7 @@ int main(int argc, char* argv[]) {
                 }
                 arrlength++;
                 arrlength=arrlength%10;
-                movetest();
+                //movetest();
                 falltest();
                 // //打印本次数据
                 // for(int k=0;k<18;k++){

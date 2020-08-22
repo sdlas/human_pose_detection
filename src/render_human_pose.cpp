@@ -61,7 +61,7 @@ bool exist(double k){
 namespace human_pose_estimation {
 void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image,double curtime,double* pointarr) {
     CV_Assert(image.type() == CV_8UC3);
-    std::cout << curtime<<std::endl;
+    std::cout <<"当前时间是"<< curtime/1000<<"s"<<std::endl;
     static const cv::Scalar colors[HumanPoseEstimator::keypointsNumber] = {
         cv::Scalar(255, 0, 0), cv::Scalar(255, 85, 0), cv::Scalar(255, 170, 0),
         cv::Scalar(255, 255, 0), cv::Scalar(170, 255, 0), cv::Scalar(85, 255, 0),
@@ -130,7 +130,7 @@ void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image,double 
             }
         }
     }
-    std::cout<<"估计身高为:"<<maxheight<<std::endl;
+    //std::cout<<"估计身高为:"<<maxheight<<std::endl;
     cv::Mat pane = image.clone();
     for (const auto& pose : poses) {
         for (const auto& limbKeypointsId : limbKeypointsIds) {
