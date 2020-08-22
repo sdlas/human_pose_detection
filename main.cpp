@@ -7,6 +7,7 @@
 * \file human_pose_estimation_demo/main.cpp
 * \example human_pose_estimation_demo/main.cpp
 */
+#include<cmath>
 #include <string>
 #include <vector>
 #include <chrono>
@@ -23,27 +24,102 @@
 using namespace InferenceEngine;
 using namespace human_pose_estimation;
 //全局变量
+bool falldownflag=false;//判断是否摔倒了
+double* pointarr = new double[36];
 char globaltemp[10];//用于返回关节编号对应的数据
 int arrlength=0;//记录读取的数组数
-double** totalarr =  new double*[10];//总数组
 //函数声明
 char* translate(int k);//将关节编号翻译成数据
-void movetest(){
-    if(totalarr[(arrlength+9)%10][0]&&totalarr[(arrlength+8)%10][0]){
-        std::cout<<"估计距离为"<<totalarr[(arrlength+9)%10][0]-totalarr[(arrlength+8)%10][0]<<std::endl;
-        if(totalarr[(arrlength+9)%10][0]-totalarr[(arrlength+8)%10][0]>10){
-            //std::cout<<"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"<<std::endl;
-        }
+double distance(double x1,double y1,double x2,double y2);//计算两点间的距离
+double getdeg(double x1,double y1,double x2,double y2);//获取与地面之间的夹角
+//获取与地面之间的夹角
+double getdeg(double x1,double y1,double x2,double y2){
+    if((x1-x2)!=0){
+        return atan((y1-y2)/abs(x1-x2))*180/3.1415;
+    }else{
+        //直角
+        return 90;
     }
 }
-
-void falltest(){
-    if(totalarr[(arrlength+9)%10][3]&&totalarr[(arrlength+8)%10][3]){
-        std::cout<<"估计距离为"<<totalarr[(arrlength+9)%10][0]-totalarr[(arrlength+8)%10][0]<<std::endl;
-        if(totalarr[(arrlength+9)%10][3]-totalarr[(arrlength+8)%10][3]>20){
-            std::cout<<"跌倒了!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"<<std::endl;
+//计算两点间的距离
+double distance(double x1,double y1,double x2,double y2){
+    return sqrt(pow(x1-x2,2)+pow(y1-y2,2));
+}
+void movetest(){
+    //获取关键点
+    double top_x;
+    double top_y;
+    double weight_x;
+    double weight_y;
+    double foot_x;
+    double foot_y;
+    //头部代表
+    if(pointarr[0]>0){
+        top_x = pointarr[0];
+        top_y = pointarr[1];
+    }else{
+        std::cout<<"数据不足，无法判断"<<std::endl;
+        return;
+    }
+    //重心代表
+    if(pointarr[11*2]>0&&pointarr[8*2]>0){
+        weight_x = (pointarr[11*2]+pointarr[8*2])/2;
+        weight_y = (pointarr[11*2+1]+pointarr[8*2+1])/2;
+    }else if(pointarr[11*2]>0){
+        weight_x = pointarr[11*2];
+        weight_y = pointarr[11*2+1];
+    }else if(pointarr[8*2]>0){
+        weight_x = pointarr[8*2];
+        weight_y = pointarr[8*2+1];
+    }else{
+        std::cout<<"数据不足，无法判断"<<std::endl;
+        return;
+    }
+    //脚部代表
+    if(pointarr[13*2]>0&&pointarr[10*2]>0){
+        foot_x = (pointarr[13*2])+pointarr[10*2])/2;
+        foot_y = (pointarr[13*2+1])+pointarr[10*2]+1)/2;
+    }else if(pointarr[13*2]>0){
+        foot_x = pointarr[13*2];
+        foot_y = pointarr[13*2+1];
+    }else if(pointarr[10*2]>0){
+        foot_x = pointarr[10*2];
+        foot_y = pointarr[10*2+1];
+    }else{
+        std::cout<<"数据不足，无法判断"<<std::endl;
+        return;
+    }
+    double d1 = distance(top_x,top_y,weight_x,weight_y);
+    double d2 = distance(weight_x,weight_y,foot_x,foot_y);
+    double p = d1/d2;
+    double deg1 = getdeg(top_x,top_y,weight_x,weight_y);
+    double deg2 = getdeg(weight_x,weight_y,foot_x,foot_y);
+    if(p<1.35&&p>0.9){
+        std::cout<<"处于站立状态"<<std::endl;
+        if(deg1<15||deg2<15){
+            std::cout<<"跌倒了"<<std::endl;
+            falldownflag = true;
+        }else{
+            falldownflag = false;
+        }
+    }else if(p<2.35&&p>=1.35){
+        std::cout<<"处于坐下状态"<<std::endl;
+        if(deg1<15||deg2<15){
+            std::cout<<"跌倒了"<<std::endl;
+            falldownflag = true;
+        }else{
+            falldownflag = false;
+        }
+    }else if(p<3.5&&>=2.35){
+        std::cout<<"处于蹲下状态"<<std::endl;
+        if(deg1<15||deg2<15){
+            std::cout<<"跌倒了"<<std::endl;
+            falldownflag = true;
+        }else{
+            falldownflag = false;
         }
     }
+    //根据关键点来判断姿态
 }
 
 bool ParseAndCheckCommandLine(int argc, char* argv[]) {
@@ -70,12 +146,6 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
-
-    double* pointarr = new double[36];
-    for(int k=0;k<10;k++){
-        double* temppoint = new double[36];
-        totalarr[k] = temppoint;
-    }
     try {
         std::cout << "InferenceEngine: " << GetInferenceEngineVersion() << std::endl;
 
@@ -251,13 +321,7 @@ int main(int argc, char* argv[]) {
                 }
                 arrlength++;
                 arrlength=arrlength%10;
-                movetest();
                 falltest();
-                // //打印本次数据
-                // for(int k=0;k<18;k++){
-                //     std::cout<<translate(k)<<"的位置是("<<pointarr[2*k]<<","<<pointarr[2*k+1]<<")"<<std::endl;
-                // }
-                // std::cout<<"----line----"<<std::endl;
             }
 
             if (isLastFrame) {
