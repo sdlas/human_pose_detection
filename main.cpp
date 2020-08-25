@@ -24,14 +24,17 @@
 using namespace InferenceEngine;
 using namespace human_pose_estimation;
 //全局变量
+int timelength = 20;
 bool falldownflag=false;//判断是否摔倒了
 double* pointarr = new double[36];
+double** timescale = new double*[20];//时空循环指针数组
 char globaltemp[10];//用于返回关节编号对应的数据
 int arrlength=0;//记录读取的数组数
 //函数声明
 char* translate(int k);//将关节编号翻译成数据
 double distances(double x1,double y1,double x2,double y2);//计算两点间的距离
 double getdeg(double x1,double y1,double x2,double y2);//获取与地面之间的夹角
+void takemeddetect();//服药检测
 //获取与地面之间的夹角
 double getdeg(double x1,double y1,double x2,double y2){
     if((x1-x2)!=0){
@@ -45,7 +48,7 @@ double getdeg(double x1,double y1,double x2,double y2){
 double distances(double x1,double y1,double x2,double y2){
     return sqrt(pow(x1-x2,2)+pow(y1-y2,2));
 }
-
+//静态姿势跌倒判断
 void falltest(){
     //获取关键点
     double top_x;
@@ -55,25 +58,31 @@ void falltest(){
     double foot_x;
     double foot_y;
     //头部代表
-    if(pointarr[0]>0){
+    if(pointarr[0]>0){//优先用鼻子
         top_x = pointarr[0];
         top_y = pointarr[1];
-    }else{
-        std::cout<<"数据不足，无法判断"<<std::endl;
+    }else if(pointarr[28]>0&&pointarr[30]>0){//鼻子没有就用眼睛的对称点
+        top_x = (pointarr[28]+pointarr[30])/2;
+        top_y = (pointarr[29]+pointarr[31])/2;
+    }else if(pointarr[32]>0&&pointarr[34]>0){//鼻子眼睛都没有就用耳朵
+        top_x = (pointarr[32]+pointarr[34])/2;
+        top_y = (pointarr[33]+pointarr[35])/2;
+    }else{//都没有就没得判断
+        std::cout<<"数据不足，静态无法判断"<<std::endl;
         return;
     }
     //重心代表
-    if(pointarr[11*2]>0&&pointarr[8*2]>0){
+    if(pointarr[11*2]>0&&pointarr[8*2]>0){//如果左右臀都在同时使用
         weight_x = (pointarr[11*2]+pointarr[8*2])/2;
         weight_y = (pointarr[11*2+1]+pointarr[8*2+1])/2;
-    }else if(pointarr[11*2]>0){
+    }else if(pointarr[11*2]>0){//只有左臀
         weight_x = pointarr[11*2];
         weight_y = pointarr[11*2+1];
-    }else if(pointarr[8*2]>0){
+    }else if(pointarr[8*2]>0){//只有右臀
         weight_x = pointarr[8*2];
         weight_y = pointarr[8*2+1];
     }else{
-        std::cout<<"数据不足，无法判断"<<std::endl;
+        std::cout<<"数据不足，静态无法判断"<<std::endl;
         return;
     }
     //脚部代表
@@ -87,7 +96,7 @@ void falltest(){
         foot_x = pointarr[10*2];
         foot_y = pointarr[10*2+1];
     }else{
-        std::cout<<"数据不足，无法判断"<<std::endl;
+        std::cout<<"数据不足，静态无法判断"<<std::endl;
         return;
     }
     double d1 = distances(top_x,top_y,weight_x,weight_y);
@@ -115,7 +124,16 @@ void falltest(){
         falldownflag = false;
     }
 }
-
+//服药检测
+void takemeddetect(){
+    //左肘到左腕的向量与地面的夹角
+    double deg1 = getdeg(pointarr[12],pointarr[13],pointarr[8],pointarr[9]);
+    //从左眼到左肘的向量与地面的夹角
+    double deg2 = getdeg(pointarr[14],pointarr[15],pointarr[12],pointarr[13]);
+    if(abs(deg1-deg2)<15){
+        std::cout<<"处于服药状态"<<std::endl;
+    }
+}
 bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
 
@@ -140,6 +158,10 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
+    for(int k=0;k<20;k++){
+        double* temppoint = new double[37];//一个包含37个浮点数的数组，记录18个关键点的坐标，以及测量改点的时间结点
+        timescale[k] = temppoint;
+    }
     try {
         std::cout << "InferenceEngine: " << GetInferenceEngineVersion() << std::endl;
 
@@ -302,6 +324,14 @@ int main(int argc, char* argv[]) {
                     presenter.drawGraphs(curr_frame);
                     auto nowtime = std::chrono::high_resolution_clock::now();
                     ms curtime = std::chrono::duration_cast<ms>(nowtime - total_t0);
+                    //此处记录关键点
+                    double* temppoint = timescale[timelength];
+                    timelength++;
+                    timelength = timelength%20;
+                    for(int k=0;k<36;k++){
+                        temppoint[k]=pointarr[k];
+                    }
+                    temppoint[36]=curtime.count();//最后记录时间结点
                     //std::cout << "Detection time  : " << std::fixed << std::setprecision(2) << .count()<<std::endl;
                     renderHumanPose(poses, curr_frame,curtime.count(),pointarr);
                     cv::imshow("Human Pose Estimation on " + FLAGS_d, curr_frame);
@@ -309,6 +339,7 @@ int main(int argc, char* argv[]) {
                     render_time = std::chrono::duration_cast<ms>(t1 - t0).count();
                 }
                 falltest();
+                takemeddetect();
             }
 
             if (isLastFrame) {
@@ -365,7 +396,7 @@ int main(int argc, char* argv[]) {
 char* translate(int k){
     switch(k){
         case 0:
-        strcpy(globaltemp, "鼻子"); 
+        strcpy(globaltemp, "鼻子");
         break;
         case 1:
         strcpy(globaltemp, "脖子");
