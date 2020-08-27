@@ -35,6 +35,7 @@ char* translate(int k);//将关节编号翻译成数据
 double distances(double x1,double y1,double x2,double y2);//计算两点间的距离
 double getdeg(double x1,double y1,double x2,double y2);//获取与地面之间的夹角
 void takemeddetect();//服药检测
+void weightmovetest();//重心移动检测
 //获取与地面之间的夹角
 double getdeg(double x1,double y1,double x2,double y2){
     if((x1-x2)!=0){
@@ -57,6 +58,7 @@ void falltest(){
     double weight_y;
     double foot_x;
     double foot_y;
+    bool useknee=false;
     //头部代表
     if(pointarr[0]>0){//优先用鼻子
         top_x = pointarr[0];
@@ -67,8 +69,12 @@ void falltest(){
     }else if(pointarr[32]>0&&pointarr[34]>0){//鼻子眼睛都没有就用耳朵
         top_x = (pointarr[32]+pointarr[34])/2;
         top_y = (pointarr[33]+pointarr[35])/2;
+    }else if(pointarr[10]>0&&pointarr[4]>0){//在没有就用肩膀
+        top_x = (pointarr[10]+pointarr[4])/2;
+        top_y = (pointarr[11]+pointarr[5])/2;
     }else{//都没有就没得判断
-        std::cout<<"数据不足，静态无法判断"<<std::endl;
+        //std::cout<<"头部数据不足，静态无法判断"<<std::endl;
+    std::cout<<"检测中......."<<std::endl;
         return;
     }
     //重心代表
@@ -82,7 +88,8 @@ void falltest(){
         weight_x = pointarr[8*2];
         weight_y = pointarr[8*2+1];
     }else{
-        std::cout<<"数据不足，静态无法判断"<<std::endl;
+        //std::cout<<"重心数据不足，静态无法判断"<<std::endl;
+    std::cout<<"检测中......."<<std::endl;
         return;
     }
     //脚部代表
@@ -95,21 +102,35 @@ void falltest(){
     }else if(pointarr[10*2]>0){
         foot_x = pointarr[10*2];
         foot_y = pointarr[10*2+1];
+    }else if(pointarr[24]>0&&pointarr[18]>0){//没有脚，用膝盖
+        foot_x = (pointarr[24]+pointarr[18])/2;
+        foot_y = (pointarr[25]+pointarr[19])/2;
+        useknee = true;
+    }else if(pointarr[24]>0){
+        foot_x = pointarr[24];
+        foot_y = pointarr[25];
+        useknee = true;
+    }else if(pointarr[18]>0){
+        foot_x = pointarr[18];
+        foot_y = pointarr[19];
+        useknee = true;
     }else{
-        std::cout<<"数据不足，静态无法判断"<<std::endl;
+        //std::cout<<"脚部数据不足，静态无法判断"<<std::endl;
+    std::cout<<"检测中......."<<std::endl;
         return;
     }
-    double d1 = distances(top_x,top_y,weight_x,weight_y);
-    double d2 = distances(weight_x,weight_y,foot_x,foot_y);
+    double d1;
+    double d2;
+    if(useknee){
+        d1 = distances(top_x,top_y,weight_x,weight_y);
+        d2 = 2*distances(weight_x,weight_y,foot_x,foot_y);
+    }else{
+        d1 = distances(top_x,top_y,weight_x,weight_y);
+        d2 = distances(weight_x,weight_y,foot_x,foot_y);
+    }
     double p = d1/d2;
     double deg1 = getdeg(top_x,top_y,weight_x,weight_y);
     double deg2 = getdeg(weight_x,weight_y,foot_x,foot_y);
-    std::cout<<"p="<<p<<std::endl;
-    std::cout<<"deg1="<<deg1<<std::endl;
-    std::cout<<"deg2="<<deg2<<std::endl;
-    std::cout<<"top_y="<<top_y<<std::endl;
-    std::cout<<"weight_y="<<weight_y<<std::endl;
-    std::cout<<"foot_y="<<foot_y<<std::endl;
     if(p<1.35&&p>0.9){
         //std::cout<<"处于站立状态"<<std::endl;
     }else if(p<2.35&&p>=1.35){
@@ -117,21 +138,31 @@ void falltest(){
     }else if(p<3.5&&p>=2.35){
         //std::cout<<"处于蹲下状态"<<std::endl;
     }
-    if(deg1<15||deg2<15){
-        std::cout<<"跌倒了"<<std::endl;
+    if(deg1<25||deg2<25){
+        std::cout<<"跌倒了!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"<<std::endl;
         falldownflag = true;
     }else{
+    std::cout<<"检测中......."<<std::endl;
         falldownflag = false;
     }
 }
+//重心移动检测
+void weightmovetest(){
+}
 //服药检测
 void takemeddetect(){
-    //左肘到左腕的向量与地面的夹角
-    double deg1 = getdeg(pointarr[12],pointarr[13],pointarr[8],pointarr[9]);
-    //从左眼到左肘的向量与地面的夹角
-    double deg2 = getdeg(pointarr[14],pointarr[15],pointarr[12],pointarr[13]);
-    if(abs(deg1-deg2)<15){
-        std::cout<<"处于服药状态"<<std::endl;
+    if(pointarr[6]>0&&pointarr[8]>0&&pointarr[28]>0){
+        //右肘到右腕的向量与地面的夹角
+        double deg1 = getdeg(pointarr[6],pointarr[7],pointarr[8],pointarr[9]);
+        //从左眼到右肘的向量与地面的夹角
+        double deg2 = getdeg(pointarr[6],pointarr[7],pointarr[28],pointarr[29]);
+        if(abs(deg1-deg2)<15){
+            std::cout<<"正在服药"<<std::endl;
+        }else{
+            std::cout<<"检测中......"<<std::endl;
+        }
+    }else{
+        //std::cout<<"数据不足"<<std::endl;
     }
 }
 bool ParseAndCheckCommandLine(int argc, char* argv[]) {
@@ -338,8 +369,9 @@ int main(int argc, char* argv[]) {
                     t1 = std::chrono::high_resolution_clock::now();
                     render_time = std::chrono::duration_cast<ms>(t1 - t0).count();
                 }
-                falltest();
-                takemeddetect();
+                // weightmovetest();//重心移动检测
+                falltest();//静态图像检测
+                //takemeddetect();//服药检测
             }
 
             if (isLastFrame) {
@@ -414,10 +446,10 @@ char* translate(int k){
         strcpy(globaltemp, "左肩");
         break;
         case 6:
-        strcpy(globaltemp, "左肘");
+        strcpy(globaltemp, "右肘");
         break;
         case 7:
-        strcpy(globaltemp, "右腕");
+        strcpy(globaltemp, "左腕");
         break;
         case 8:
         strcpy(globaltemp, "右臀");
