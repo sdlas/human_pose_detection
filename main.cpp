@@ -24,10 +24,13 @@
 using namespace InferenceEngine;
 using namespace human_pose_estimation;
 //全局变量
-int timelength = 20;
+int timelength = 0;
 bool falldownflag=false;//判断是否摔倒了
 double* pointarr = new double[36];
-double** timescale = new double*[20];//时空循环指针数组
+double*** timescale = new double**[20];//时空循环指针数组
+double* timearr = new double[20];//记录与时空循环指针数组对应的时间节点
+double** persons = new double*[5];//最多同时读取三人的信息
+const int personnum = 5;//同时读取的人的数量
 char globaltemp[10];//用于返回关节编号对应的数据
 int arrlength=0;//记录读取的数组数
 //函数声明
@@ -36,6 +39,23 @@ double distances(double x1,double y1,double x2,double y2);//计算两点间的�
 double getdeg(double x1,double y1,double x2,double y2);//获取与地面之间的夹角
 void takemeddetect();//服药检测
 void weightmovetest();//重心移动检测
+bool getweightpoint(double* temppointarr);//获取重心坐标
+double weightpoint[2];//重心坐标
+double getscale(double* temppointarr);//获取scale值
+bool isusable(double* arr);//判断一组数据是否无效
+bool isusable(double* arr){
+    for(int k=0;k<36;k++){
+        if(arr[k]!=-1) return true;
+    }
+    return false;
+}
+//获取scale值
+double getscale(double* temppointarr){
+    return temppointarr[36];
+}
+//flags
+bool speedfallflag[5];//按重心下降速度判断是否摔倒
+bool posefallflag[5];//按姿势判断是否摔倒
 //获取与地面之间的夹角
 double getdeg(double x1,double y1,double x2,double y2){
     if((x1-x2)!=0){
@@ -49,8 +69,27 @@ double getdeg(double x1,double y1,double x2,double y2){
 double distances(double x1,double y1,double x2,double y2){
     return sqrt(pow(x1-x2,2)+pow(y1-y2,2));
 }
+//获取重心坐标
+bool getweightpoint(double* temppointarr){
+    //重心代表
+    if(temppointarr[11*2]>0&&temppointarr[8*2]>0){//如果左右臀都在同时使用
+        weightpoint[0] = (temppointarr[11*2]+temppointarr[8*2])/2;
+        weightpoint[1] = (temppointarr[11*2+1]+temppointarr[8*2+1])/2;
+    }else if(temppointarr[11*2]>0){//只有左臀
+        weightpoint[0] = temppointarr[11*2];
+        weightpoint[1] = temppointarr[11*2+1];
+    }else if(temppointarr[8*2]>0){//只有右臀
+        weightpoint[0] = temppointarr[8*2];
+        weightpoint[1] = temppointarr[8*2+1];
+    }else{
+        //std::cout<<"重心数据不足，静态无法判断"<<std::endl;
+    std::cout<<"检测中......."<<std::endl;
+        return false;
+    }
+    return true;
+}
 //静态姿势跌倒判断
-void falltest(){
+void falltest(double* temppointarr,int id){
     //获取关键点
     double top_x;
     double top_y;
@@ -60,63 +99,54 @@ void falltest(){
     double foot_y;
     bool useknee=false;
     //头部代表
-    if(pointarr[0]>0){//优先用鼻子
-        top_x = pointarr[0];
-        top_y = pointarr[1];
-    }else if(pointarr[28]>0&&pointarr[30]>0){//鼻子没有就用眼睛的对称点
-        top_x = (pointarr[28]+pointarr[30])/2;
-        top_y = (pointarr[29]+pointarr[31])/2;
-    }else if(pointarr[32]>0&&pointarr[34]>0){//鼻子眼睛都没有就用耳朵
-        top_x = (pointarr[32]+pointarr[34])/2;
-        top_y = (pointarr[33]+pointarr[35])/2;
-    }else if(pointarr[10]>0&&pointarr[4]>0){//在没有就用肩膀
-        top_x = (pointarr[10]+pointarr[4])/2;
-        top_y = (pointarr[11]+pointarr[5])/2;
+    if(temppointarr[0]>0){//优先用鼻子
+        top_x = temppointarr[0];
+        top_y = temppointarr[1];
+    }else if(temppointarr[28]>0&&temppointarr[30]>0){//鼻子没有就用眼睛的对称点
+        top_x = (temppointarr[28]+temppointarr[30])/2;
+        top_y = (temppointarr[29]+temppointarr[31])/2;
+    }else if(temppointarr[32]>0&&temppointarr[34]>0){//鼻子眼睛都没有就用耳朵
+        top_x = (temppointarr[32]+temppointarr[34])/2;
+        top_y = (temppointarr[33]+temppointarr[35])/2;
+    }else if(temppointarr[10]>0&&temppointarr[4]>0){//在没有就用肩膀
+        top_x = (temppointarr[10]+temppointarr[4])/2;
+        top_y = (temppointarr[11]+temppointarr[5])/2;
     }else{//都没有就没得判断
         //std::cout<<"头部数据不足，静态无法判断"<<std::endl;
     std::cout<<"检测中......."<<std::endl;
         return;
     }
-    //重心代表
-    if(pointarr[11*2]>0&&pointarr[8*2]>0){//如果左右臀都在同时使用
-        weight_x = (pointarr[11*2]+pointarr[8*2])/2;
-        weight_y = (pointarr[11*2+1]+pointarr[8*2+1])/2;
-    }else if(pointarr[11*2]>0){//只有左臀
-        weight_x = pointarr[11*2];
-        weight_y = pointarr[11*2+1];
-    }else if(pointarr[8*2]>0){//只有右臀
-        weight_x = pointarr[8*2];
-        weight_y = pointarr[8*2+1];
-    }else{
-        //std::cout<<"重心数据不足，静态无法判断"<<std::endl;
-    std::cout<<"检测中......."<<std::endl;
-        return;
+    //获取重心
+    if(!getweightpoint(temppointarr)) return;
+    else{
+        weight_x = weightpoint[0];
+        weight_y = weightpoint[1];
     }
     //脚部代表
-    if(pointarr[13*2]>0&&pointarr[10*2]>0){
-        foot_x = (pointarr[13*2]+pointarr[10*2])/2;
-        foot_y = (pointarr[13*2+1]+pointarr[10*2]+1)/2;
-    }else if(pointarr[13*2]>0){
-        foot_x = pointarr[13*2];
-        foot_y = pointarr[13*2+1];
-    }else if(pointarr[10*2]>0){
-        foot_x = pointarr[10*2];
-        foot_y = pointarr[10*2+1];
-    }else if(pointarr[24]>0&&pointarr[18]>0){//没有脚，用膝盖
-        foot_x = (pointarr[24]+pointarr[18])/2;
-        foot_y = (pointarr[25]+pointarr[19])/2;
+    if(temppointarr[13*2]>0&&temppointarr[10*2]>0){
+        foot_x = (temppointarr[13*2]+temppointarr[10*2])/2;
+        foot_y = (temppointarr[13*2+1]+temppointarr[10*2]+1)/2;
+    }else if(temppointarr[13*2]>0){
+        foot_x = temppointarr[13*2];
+        foot_y = temppointarr[13*2+1];
+    }else if(temppointarr[10*2]>0){
+        foot_x = temppointarr[10*2];
+        foot_y = temppointarr[10*2+1];
+    }else if(temppointarr[24]>0&&temppointarr[18]>0){//没有脚，用膝盖
+        foot_x = (temppointarr[24]+temppointarr[18])/2;
+        foot_y = (temppointarr[25]+temppointarr[19])/2;
         useknee = true;
-    }else if(pointarr[24]>0){
-        foot_x = pointarr[24];
-        foot_y = pointarr[25];
+    }else if(temppointarr[24]>0){
+        foot_x = temppointarr[24];
+        foot_y = temppointarr[25];
         useknee = true;
-    }else if(pointarr[18]>0){
-        foot_x = pointarr[18];
-        foot_y = pointarr[19];
+    }else if(temppointarr[18]>0){
+        foot_x = temppointarr[18];
+        foot_y = temppointarr[19];
         useknee = true;
     }else{
         //std::cout<<"脚部数据不足，静态无法判断"<<std::endl;
-    std::cout<<"检测中......."<<std::endl;
+        std::cout<<"检测中......."<<std::endl;
         return;
     }
     double d1;
@@ -138,16 +168,43 @@ void falltest(){
     }else if(p<3.5&&p>=2.35){
         //std::cout<<"处于蹲下状态"<<std::endl;
     }
-    if(deg1<25||deg2<25){
-        std::cout<<"跌倒了!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"<<std::endl;
+    if(deg1<25&&deg2<25){
+        std::cout<<"第"<<id+1<<"个人跌倒了!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"<<std::endl;
+        posefallflag[id] = true;
         falldownflag = true;
     }else{
     std::cout<<"检测中......."<<std::endl;
         falldownflag = false;
+        posefallflag[id] = false;
+    }
+}
+//多人检测，现在最多三个
+void falltests(){
+    for(int k=0;k<personnum;k++){
+        falltest(persons[k],k);
     }
 }
 //重心移动检测
 void weightmovetest(){
+    if(arrlength<6) return; 
+    double** nowpoint = timescale[(timelength+19)%20];
+    double** agopoint = timescale[(timelength+14)%20];
+    double timetin = timearr[(timelength+14)%20]-timearr[(timelength+19)%20];
+    //每个人单独判断
+    for(int k=0;k<personnum;k++){
+        getweightpoint(nowpoint[k]);
+        double now_y=weightpoint[1];
+        getweightpoint(agopoint[k]);
+        double ago_y=weightpoint[1];
+        double y_move = ago_y*getscale(agopoint[k])-now_y*getscale(nowpoint[k]);
+        double speed = y_move/100/(timetin/1000);
+        if(speed>1.37){
+            speedfallflag[k] = true;
+        }else{
+            speedfallflag[k] = false;
+        }
+        std::cout<<"速度是:"<<speed<<std::endl;
+    }
 }
 //服药检测
 void takemeddetect(){
@@ -189,9 +246,21 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
+    //数据初始化
     for(int k=0;k<20;k++){
-        double* temppoint = new double[37];//一个包含37个浮点数的数组，记录18个关键点的坐标，以及测量改点的时间结点
+        double** temppoint = new double*[5];
+        //再给每个人申请空间
+        for(int j=0;j<personnum;j++){
+            double* temppersonpoint = new double[37];
+            temppoint[j] = temppersonpoint;
+        }
         timescale[k] = temppoint;
+    }
+    for (int k=0;k<personnum;k++){
+        posefallflag[k] = false;
+        speedfallflag[k] = false;
+        double* temppoint = new double[37];//一个包含37个浮点数的数组，记录18个关键点的坐标，以及,画面比例转化比，测量改点的时间结点
+        persons[k] = temppoint;
     }
     try {
         std::cout << "InferenceEngine: " << GetInferenceEngineVersion() << std::endl;
@@ -356,21 +425,41 @@ int main(int argc, char* argv[]) {
                     auto nowtime = std::chrono::high_resolution_clock::now();
                     ms curtime = std::chrono::duration_cast<ms>(nowtime - total_t0);
                     //此处记录关键点
-                    double* temppoint = timescale[timelength];
+                    double** personpoint = timescale[timelength];
+                    timearr[timelength] = curtime.count();//最后记录时间结点
                     timelength++;
                     timelength = timelength%20;
-                    for(int k=0;k<36;k++){
-                        temppoint[k]=pointarr[k];
-                    }
-                    temppoint[36]=curtime.count();//最后记录时间结点
+                    arrlength++;
+                    
                     //std::cout << "Detection time  : " << std::fixed << std::setprecision(2) << .count()<<std::endl;
-                    renderHumanPose(poses, curr_frame,curtime.count(),pointarr);
+                    renderHumanPose(poses, curr_frame,curtime.count(),persons);
+                    int usablenum=0;//可用数据数量
+                    for(int k=0;k<personnum;k++){
+                        double* temppointarr = persons[k];
+                        if(!isusable(temppointarr)) break;
+                        usablenum++;
+                    }
+                    //将persons里的数据传进timescale的一个时刻里
+                    for(int k=0;k<usablenum;k++){
+                        double* temppointarr = personpoint[k];
+                        double* tempperson = persons[k];
+                        for(int j=0;j<37;j++){
+                            temppointarr[j] = tempperson[j];
+                        }
+                    }
+
+                    //判断是否跌倒
+                    for(int k=0;k<usablenum;k++){
+                        if(posefallflag[k]) std::cout<<"第"<<k<<"个人处于摔倒姿势！！！！！！！！！！！！！！！！！！！！！！！！！！！！"<<std::endl;
+                        if(speedfallflag[k]) std::cout<<"第"<<k<<"个人重心下降飞快！！！！！！！！！！！！！！！！！！！！！！！！！！！！"<<std::endl;
+                    }
                     cv::imshow("Human Pose Estimation on " + FLAGS_d, curr_frame);
                     t1 = std::chrono::high_resolution_clock::now();
                     render_time = std::chrono::duration_cast<ms>(t1 - t0).count();
                 }
                 // weightmovetest();//重心移动检测
-                falltest();//静态图像检测
+                falltests();//静态图像检测
+                weightmovetest();
                 //takemeddetect();//服药检测
             }
 

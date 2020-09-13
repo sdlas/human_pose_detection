@@ -11,5 +11,5 @@
 #include "human_pose.hpp"
 
 namespace human_pose_estimation {
-    void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image,double curtime,double* pointarr);
+    void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image,double curtime,double** persons);
 }  // namespace human_pose_estimation

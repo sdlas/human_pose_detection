@@ -59,7 +59,7 @@ bool exist(double k){
     return k!=-1.0;
 }
 namespace human_pose_estimation {
-void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image,double curtime,double* pointarr) {
+void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image,double curtime,double** persons) {
     CV_Assert(image.type() == CV_8UC3);
     //std::cout <<"当前时间是"<< curtime/1000<<"s"<<std::endl;
     static const cv::Scalar colors[HumanPoseEstimator::keypointsNumber] = {
@@ -102,6 +102,9 @@ void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image,double 
     //将两个数组初始化
     zerotemparr();
     double maxheight=0;//当前检测到的最大身高,如果不超出太多的话则会记入
+    int personid=0;//当前读取数据的人的id
+    double aveheight = 165.0;//老人预估身高
+    double scale = 1.0;//老人身高与画面的比例
     for (const auto& pose : poses) {
         CV_Assert(pose.keypoints.size() == HumanPoseEstimator::keypointsNumber);
         for (size_t keypointIdx = 0; keypointIdx < pose.keypoints.size(); keypointIdx++) {
@@ -121,14 +124,24 @@ void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image,double 
             //因为人在移动后身高会随着离摄像头的距离改变而改变
             if(tempheight>0.9*maxheight&&tempheight<1.1*maxheight){
                 maxheight = tempheight;
+                scale = aveheight/maxheight;
             }
         }else{
             maxheight = tempheight;
-            for(int k=0;k<18;k++){
-                pointarr[k*2] = temppointarr[k][0];
-                pointarr[k*2+1] = temppointarr[k][1];
+            scale = aveheight/maxheight;
+            if(personid<5){
+                double* temppointarrs = persons[personid];
+                for(int k=0;k<18;k++){
+                    std::cout<<"null="<<temppointarr[k][0];
+                    temppointarrs[k*2] = temppointarr[k][0];
+                    temppointarrs[k*2+1] = temppointarr[k][1];
+                }
+                temppointarrs[36] = scale;
+            }else{
+                std::cout<<"人数过多，处理不了啦"<<std::endl;
             }
         }
+        personid++;
     }
     //std::cout<<"估计身高为:"<<maxheight<<std::endl;
     cv::Mat pane = image.clone();
