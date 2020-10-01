@@ -72,7 +72,7 @@ void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image,double 
     };
     static const std::pair<int, int> limbKeypointsIds[] = {
         {1, 2},  {1, 5},   {2, 3},
-        {3, 4},  {5, 6},   {6, 7},
+        {3, 4},  {5, 6},   {6, 7},`
         {1, 8},  {8, 9},   {9, 10},
         {1, 11}, {11, 12}, {12, 13},
         {1, 0},  {0, 14},  {14, 16},
@@ -81,6 +81,10 @@ void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image,double 
 
     const int stickWidth = 4;
     const cv::Point2f absentKeypoint(-1.0f, -1.0f);
+    std::ofstream OpenFile("out.txt",std::ios::out);
+    OpenFile<<"第"<<"个人"<<'\n';
+    OpenFile<<"-----opline-----"<<'\n';	
+    OpenFile.close();
     //写入文件版
     // std::ofstream OpenFile("out.txt",std::ios::out|std::ios::app);
     // for (const auto& pose : poses) {
@@ -132,7 +136,6 @@ void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image,double 
             if(personid<5){
                 double* temppointarrs = persons[personid];
                 for(int k=0;k<18;k++){
-                    std::cout<<"null="<<temppointarr[k][0];
                     temppointarrs[k*2] = temppointarr[k][0];
                     temppointarrs[k*2+1] = temppointarr[k][1];
                 }

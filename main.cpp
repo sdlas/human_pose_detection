@@ -82,8 +82,7 @@ bool getweightpoint(double* temppointarr){
         weightpoint[0] = temppointarr[8*2];
         weightpoint[1] = temppointarr[8*2+1];
     }else{
-        //std::cout<<"重心数据不足，静态无法判断"<<std::endl;
-    std::cout<<"检测中......."<<std::endl;
+    //std::cout<<"检测中......."<<std::endl;
         return false;
     }
     return true;
@@ -112,8 +111,7 @@ void falltest(double* temppointarr,int id){
         top_x = (temppointarr[10]+temppointarr[4])/2;
         top_y = (temppointarr[11]+temppointarr[5])/2;
     }else{//都没有就没得判断
-        //std::cout<<"头部数据不足，静态无法判断"<<std::endl;
-    std::cout<<"检测中......."<<std::endl;
+        //std::cout<<"检测中......."<<std::endl;
         return;
     }
     //获取重心
@@ -146,7 +144,7 @@ void falltest(double* temppointarr,int id){
         useknee = true;
     }else{
         //std::cout<<"脚部数据不足，静态无法判断"<<std::endl;
-        std::cout<<"检测中......."<<std::endl;
+        //std::cout<<"检测中......."<<std::endl;
         return;
     }
     double d1;
@@ -168,12 +166,14 @@ void falltest(double* temppointarr,int id){
     }else if(p<3.5&&p>=2.35){
         //std::cout<<"处于蹲下状态"<<std::endl;
     }
+    if(id==1)
+        std::cout<<"deg1="<<deg1<<std::endl<<"deg2="<<deg2<<std::endl;
     if(deg1<25&&deg2<25){
         std::cout<<"第"<<id+1<<"个人跌倒了!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"<<std::endl;
         posefallflag[id] = true;
         falldownflag = true;
     }else{
-    std::cout<<"检测中......."<<std::endl;
+        //std::cout<<"检测中......."<<std::endl;
         falldownflag = false;
         posefallflag[id] = false;
     }
@@ -203,7 +203,6 @@ void weightmovetest(){
         }else{
             speedfallflag[k] = false;
         }
-        std::cout<<"速度是:"<<speed<<std::endl;
     }
 }
 //服药检测
@@ -216,10 +215,9 @@ void takemeddetect(){
         if(abs(deg1-deg2)<15){
             std::cout<<"正在服药"<<std::endl;
         }else{
-            std::cout<<"检测中......"<<std::endl;
+            //std::cout<<"检测中......"<<std::endl;
         }
     }else{
-        //std::cout<<"数据不足"<<std::endl;
     }
 }
 bool ParseAndCheckCommandLine(int argc, char* argv[]) {
@@ -325,7 +323,6 @@ int main(int argc, char* argv[]) {
 
             //非异步，此段不执行
             if (isAsyncMode) {
-                std::cout<<"some"<<std::endl;
                 if (isModeChanged) {
                     estimator.frameToBlobCurr(curr_frame);
                 }
@@ -451,7 +448,7 @@ int main(int argc, char* argv[]) {
                     //判断是否跌倒
                     for(int k=0;k<usablenum;k++){
                         if(posefallflag[k]) std::cout<<"第"<<k<<"个人处于摔倒姿势！！！！！！！！！！！！！！！！！！！！！！！！！！！！"<<std::endl;
-                        if(speedfallflag[k]) std::cout<<"第"<<k<<"个人重心下降飞快！！！！！！！！！！！！！！！！！！！！！！！！！！！！"<<std::endl;
+                        if(speedfallflag[k]) std::cout<<"第"<<k<<"个人重心下降！！！！！！！！！！！！！！！！！！！！！！！！！！！！"<<std::endl;
                     }
                     cv::imshow("Human Pose Estimation on " + FLAGS_d, curr_frame);
                     t1 = std::chrono::high_resolution_clock::now();
