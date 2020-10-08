@@ -125,26 +125,28 @@ void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image,double 
         //估算人的大致身高
         
         double tempheight = calheight();
-        std::cout<<"人体估计高度"<<tempheight<<std::endl;
-        if(maxheight!=0.0){
-            //因为人在移动后身高会随着离摄像头的距离改变而改变
-            if(tempheight>0.9*maxheight&&tempheight<1.1*maxheight){
-                maxheight = tempheight;
-                scale = aveheight/maxheight;
+        std::cout<<"人体估计高度="<<tempheight<<std::endl;
+        // if(maxheight!=0.0){
+        //     //因为人在移动后身高会随着离摄像头的距离改变而改变
+        //     if(tempheight>0.9*maxheight&&tempheight<1.1*maxheight){
+        //         maxheight = tempheight;
+        //         scale = aveheight/maxheight;
+        //     }
+        // }else{
+            
+        // }
+        maxheight = tempheight;
+        scale = aveheight/maxheight;
+        if(personid<5){
+            double* temppointarrs = persons[personid];
+            for(int k=0;k<18;k++){
+                temppointarrs[k*2] = temppointarr[k][0];
+                temppointarrs[k*2+1] = temppointarr[k][1];
             }
+            std::cout<<"估计比例="<<scale<<std::endl;
+            temppointarrs[36] = scale;
         }else{
-            maxheight = tempheight;
-            scale = aveheight/maxheight;
-            if(personid<5){
-                double* temppointarrs = persons[personid];
-                for(int k=0;k<18;k++){
-                    temppointarrs[k*2] = temppointarr[k][0];
-                    temppointarrs[k*2+1] = temppointarr[k][1];
-                }
-                temppointarrs[36] = scale;
-            }else{
-                std::cout<<"人数过多，处理不了啦"<<std::endl;
-            }
+            std::cout<<"人数过多，处理不了啦"<<std::endl;
         }
         personid++;
     }

@@ -186,9 +186,13 @@ void weightmovetest(){
     double timetin = timearr[(timelength+14)%20]-timearr[(timelength+19)%20];
     //每个人单独判断
     for(int k=0;k<personnum;k++){
-        getweightpoint(nowpoint[k]);
+        if(!getweightpoint(nowpoint[k])){
+            std::cout<<"并没有获取现在的重心"<<tempheight<<std::endl;
+        }
         double now_y=weightpoint[1];
-        getweightpoint(agopoint[k]);
+        if(!getweightpoint(agopoint[k])){
+            std::cout<<"并没有获取10帧前的重心"<<tempheight<<std::endl;
+        }
         double ago_y=weightpoint[1];
         double y_move = ago_y*getscale(agopoint[k])-now_y*getscale(nowpoint[k]);
         double speed = y_move/100/(timetin/1000);
