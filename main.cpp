@@ -16,7 +16,7 @@
 
 #include <monitors/presenter.h>
 #include <samples/ocv_common.hpp>
-
+#include <iostream>
 #include "human_pose_estimation_demo.hpp"
 #include "human_pose_estimator.hpp"
 #include "render_human_pose.hpp"
@@ -25,7 +25,6 @@ using namespace InferenceEngine;
 using namespace human_pose_estimation;
 //全局变量
 int timelength = 0;
-bool falldownflag=false;//判断是否摔倒了
 double* pointarr = new double[36];
 double*** timescale = new double**[20];//时空循环指针数组
 double* timearr = new double[20];//记录与时空循环指针数组对应的时间节点
@@ -56,6 +55,7 @@ double getscale(double* temppointarr){
 //flags
 bool speedfallflag[5];//按重心下降速度判断是否摔倒
 bool posefallflag[5];//按姿势判断是否摔倒
+bool falldownflag=false;//判断是否摔倒了
 //获取与地面之间的夹角
 double getdeg(double x1,double y1,double x2,double y2){
     if((x1-x2)!=0){
@@ -166,15 +166,9 @@ void falltest(double* temppointarr,int id){
     }else if(p<3.5&&p>=2.35){
         //std::cout<<"处于蹲下状态"<<std::endl;
     }
-    if(id==1)
-        std::cout<<"deg1="<<deg1<<std::endl<<"deg2="<<deg2<<std::endl;
     if(deg1<25&&deg2<25){
-        std::cout<<"第"<<id+1<<"个人跌倒了!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"<<std::endl;
         posefallflag[id] = true;
-        falldownflag = true;
     }else{
-        //std::cout<<"检测中......."<<std::endl;
-        falldownflag = false;
         posefallflag[id] = false;
     }
 }
@@ -203,21 +197,6 @@ void weightmovetest(){
         }else{
             speedfallflag[k] = false;
         }
-    }
-}
-//服药检测
-void takemeddetect(){
-    if(pointarr[6]>0&&pointarr[8]>0&&pointarr[28]>0){
-        //右肘到右腕的向量与地面的夹角
-        double deg1 = getdeg(pointarr[6],pointarr[7],pointarr[8],pointarr[9]);
-        //从左眼到右肘的向量与地面的夹角
-        double deg2 = getdeg(pointarr[6],pointarr[7],pointarr[28],pointarr[29]);
-        if(abs(deg1-deg2)<15){
-            std::cout<<"正在服药"<<std::endl;
-        }else{
-            //std::cout<<"检测中......"<<std::endl;
-        }
-    }else{
     }
 }
 bool ParseAndCheckCommandLine(int argc, char* argv[]) {
@@ -446,9 +425,31 @@ int main(int argc, char* argv[]) {
                     }
 
                     //判断是否跌倒
+                    bool tempposefallflag = false;
+                    bool tempspeedfallflag = false;
                     for(int k=0;k<usablenum;k++){
-                        if(posefallflag[k]) std::cout<<"第"<<k<<"个人处于摔倒姿势！！！！！！！！！！！！！！！！！！！！！！！！！！！！"<<std::endl;
-                        if(speedfallflag[k]) std::cout<<"第"<<k<<"个人重心下降！！！！！！！！！！！！！！！！！！！！！！！！！！！！"<<std::endl;
+                        if(posefallflag[k]){
+                            std::cout<<"姿势确认摔倒了!"<<std::endl;
+                            tempposefallflag = true;
+                        } 
+                        if(speedfallflag[k]){
+                            std::cout<<"重心下降确认摔倒了!"<<std::endl;
+                            tempposefallflag = true;
+                        } 
+                    }
+                    if(tempposefallflag||tempspeedfallflag){
+                        falldownflag = true;
+                        //向txt写入跌倒
+                        std::cout<<"确认摔倒了!"<<std::endl;
+                        std::ofstream OpenFile("flag.txt",std::ios::out);
+                        OpenFile<<"1"<<'\n';
+                        OpenFile.close();
+                    }else{
+                        //向txt写入正常
+                        falldownflag = false;
+                        std::ofstream OpenFile("flag.txt",std::ios::out);
+                        OpenFile<<"0"<<'\n';
+                        OpenFile.close();
                     }
                     cv::imshow("Human Pose Estimation on " + FLAGS_d, curr_frame);
                     t1 = std::chrono::high_resolution_clock::now();

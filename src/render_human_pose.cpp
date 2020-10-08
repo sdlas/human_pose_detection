@@ -46,11 +46,15 @@ double calheight(){
     }else if(exist(temppointarr[1][1])&&exist(temppointarr[8][1])){
         return distance(temppointarr[1][0],temppointarr[1][1],temppointarr[8][0],temppointarr[8][1])*3;
     }
-    //如果脖子和膝盖都在
-    if(exist(temppointarr[1][1])&&exist(temppointarr[12][1])){
-        return distance(temppointarr[1][0],temppointarr[1][1],temppointarr[12][0],temppointarr[12][1])*2;
-    }else if(exist(temppointarr[1][1])&&exist(temppointarr[9][1])){
-        return distance(temppointarr[1][0],temppointarr[1][1],temppointarr[9][0],temppointarr[9][1])*2;
+    //如果臀部和膝盖都在
+    if(exist(temppointarr[11][1])&&exist(temppointarr[12][1])){
+        return distance(temppointarr[11][0],temppointarr[11][1],temppointarr[12][0],temppointarr[12][1])*4;
+    }else if(exist(temppointarr[11][1])&&exist(temppointarr[9][1])){
+        return distance(temppointarr[11][0],temppointarr[11][1],temppointarr[9][0],temppointarr[9][1])*4;
+    }else if(exist(temppointarr[8][1])&&exist(temppointarr[9][1])){
+        return distance(temppointarr[8][0],temppointarr[8][1],temppointarr[9][0],temppointarr[9][1])*4;
+    }else if(exist(temppointarr[8][1])&&exist(temppointarr[12][1])){
+        return distance(temppointarr[8][0],temppointarr[8][1],temppointarr[12][0],temppointarr[12][1])*4;
     }
     return 0.0;
 }
@@ -72,7 +76,7 @@ void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image,double 
     };
     static const std::pair<int, int> limbKeypointsIds[] = {
         {1, 2},  {1, 5},   {2, 3},
-        {3, 4},  {5, 6},   {6, 7},`
+        {3, 4},  {5, 6},   {6, 7},
         {1, 8},  {8, 9},   {9, 10},
         {1, 11}, {11, 12}, {12, 13},
         {1, 0},  {0, 14},  {14, 16},
@@ -81,10 +85,6 @@ void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image,double 
 
     const int stickWidth = 4;
     const cv::Point2f absentKeypoint(-1.0f, -1.0f);
-    std::ofstream OpenFile("out.txt",std::ios::out);
-    OpenFile<<"第"<<"个人"<<'\n';
-    OpenFile<<"-----opline-----"<<'\n';	
-    OpenFile.close();
     //写入文件版
     // std::ofstream OpenFile("out.txt",std::ios::out|std::ios::app);
     // for (const auto& pose : poses) {
@@ -123,7 +123,9 @@ void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image,double 
         }
         //现在只看一个人的状态,需要过滤掉其他人的干扰
         //估算人的大致身高
+        
         double tempheight = calheight();
+        std::cout<<"人体估计高度"<<tempheight<<std::endl;
         if(maxheight!=0.0){
             //因为人在移动后身高会随着离摄像头的距离改变而改变
             if(tempheight>0.9*maxheight&&tempheight<1.1*maxheight){
